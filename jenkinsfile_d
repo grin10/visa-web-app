@@ -1,0 +1,64 @@
+pipeline{
+	agent any
+	tools {
+		maven "maven3.8.6"
+	}
+	stages {
+		stage('1GetCode'){
+			steps{
+			sh "echo 'cloning the lastest application version'"
+			git credentialsId: 'github_credentials', url: 'https://github.com/grin10/visa-web-app'
+			}
+		}
+  		stage('2Test+Build'){
+  			steps{
+  			sh "echo 'running JUNIT-test-cases'"
+  			sh "echo 'test must passed to create artifacts'"
+  			sh "mvn clean package"
+  			}
+  		}
+  		stage('3CodeQuality'){
+  			steps{
+  			sh "echo 'performing CodeQualityAnalysis'"
+  			sh "mvn sonar:sonar"
+  			}
+  		}
+  		stage('4uploadNexus'){
+  			steps{
+  			sh "mvn deploy"
+  			}
+  		}
+  		stage('6deploy2prod'){
+  		steps{
+  			deploy adapters: [tomcat9(credentialsId: 'tomcat-credentials', path: '', url: 'http://35.91.141.200:8080/')], contextPath: null, war: 'target/*war'
+  			}
+  		}
+  		/*
+  		stage('7approval'){}
+  		stage('8deploy2Prod'){}
+  		stage('9Notification'){}
+  		*/
+	}
+	/*
+	options {}
+	*/
+	post {
+		/*
+		always{}
+		*/
+		
+		success{
+		  	emailext body: '''Hi all\'
+			check build status
+
+			Landmark Tech''', recipientProviders: [developers(), upstreamDevelopers(), contributor()], subject: 'build status', to: 'visa-team41@gamil.com'
+		}
+		
+		failure{
+		emailext body: '''Hi all\'
+			build failed. review accordingly
+
+			Landmark Tech''', recipientProviders: [developers(), upstreamDevelopers(), contributor()], subject: 'build status', to: 'visa-team41@gamil.com'
+		}		
+	}
+}
